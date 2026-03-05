@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "WebFetch(domain:ksef-test.mf.gov.pl)",
+      "WebSearch",
+      "Bash(dotnet build)",
+      "Bash(dotnet ef migrations add:*)",
+      "Bash(git log:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:ksefapi.pl)",
+      "Bash(find:*)",
+      "Bash(curl:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(/mnt/c/Program\\\\ Files/dotnet/dotnet.exe build:*)",
+      "WebFetch(domain:ksef.podatki.gov.pl)",
+      "WebFetch(domain:mizzox.com)",
+      "WebFetch(domain:4programmers.net)",
+      "Bash(/mnt/c/Program\\\\ Files/dotnet/dotnet.exe ef migrations add:*)",
+      "WebFetch(domain:api-test.ksef.mf.gov.pl)",
+      "WebFetch(domain:www.gov.pl)",
+      "Bash(python3:*)",
+      "Bash(/mnt/c/Program Files/dotnet/dotnet.exe build:*)"
+    ]
+  }
+}
