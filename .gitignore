@@ -1,0 +1,19 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/PlaySpace.Api/bin/Debug/net8.0
+/PlaySpace.Api/obj
+/PlaySpace.Domain/bin/Debug/net8.0
+/PlaySpace.Domain/obj/Debug/net8.0
+/PlaySpace.Api/appsettings.development.json
+/PlaySpace.Tests/obj/Debug/net8.0
+/PlaySpace.Services/obj/Release/net8.0
+/PlaySpace.Services/obj
+/PlaySpace.Repositories/obj
+/PlaySpace.Tests/obj/Release/net8.0
+/PlaySpace.Domain/obj/Release/net8.0
+/PlaySpace.Domain/obj
+/PlaySpace.Services/bin/Debug/net8.0
+/PlaySpace.Repositories/bin/Debug/net8.0
+/PlaySpace.Api/PlaySpace.Api.csproj.user
