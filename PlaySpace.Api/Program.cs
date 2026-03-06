@@ -18,6 +18,11 @@ using Serilog.Events;
 using PlaySpace.Domain.DTOs;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add environment-specific Local configuration file (for local secrets)
+var environment = builder.Environment.EnvironmentName;
+builder.Configuration.AddJsonFile($"appsettings.{environment}.Local.json", optional: true, reloadOnChange: true);
+
 var _configuration = builder.Configuration;
 
 // Configure Serilog

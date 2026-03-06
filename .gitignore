@@ -361,5 +361,13 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-/PlaySpace.Api/appsettings.Development.json
+# Local secrets (never commit these)
+**/appsettings.*.Local.json
+**/appsettings.Local.json
+
+# Claude Code local settings (may contain tokens)
+.claude/settings.local.json
+
+# Firebase credentials
 /PlaySpace.Api/Config/playspace-firebase-adminsdk-dev.json
+/PlaySpace.Api/Config/playspace-firebase-adminsdk-*.json
