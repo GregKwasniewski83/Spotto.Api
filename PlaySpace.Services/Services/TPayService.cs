@@ -466,8 +466,10 @@ namespace PlaySpace.Services.Services
 
         public string GenerateMd5Hash(TPayNotification notification, string securityCode)
         {
-            var hashString = $"{notification.id}&{notification.tr_id}&{notification.tr_date}&{notification.tr_crc}&{notification.tr_amount}&{notification.tr_paid}&{notification.tr_desc}&{notification.tr_status}&{notification.tr_error}&{notification.tr_email}&{securityCode}";
-            
+            // TPay MD5 formula: md5(id + tr_id + tr_amount + tr_crc + security_code)
+            // See: https://support.tpay.com/en/glossary/md5sum
+            var hashString = $"{notification.id}{notification.tr_id}{notification.tr_amount}{notification.tr_crc}{securityCode}";
+
             using (var md5 = MD5.Create())
             {
                 var hash = md5.ComputeHash(Encoding.UTF8.GetBytes(hashString));
