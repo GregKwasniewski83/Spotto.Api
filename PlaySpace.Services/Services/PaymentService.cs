@@ -567,8 +567,15 @@ namespace PlaySpace.Services.Services
                 throw new NotFoundException("Payment", paymentId.ToString());
             }
 
-            _logger.LogInformation("Processing TPay marketplace notification for payment {PaymentId} with status {Status}", 
+            _logger.LogInformation("Processing TPay marketplace notification for payment {PaymentId} with status {Status}",
                 payment.Id, notification.data.transactionStatus);
+
+            // Idempotency check - prevent duplicate processing
+            if (payment.Status == "COMPLETED" && notification.data.transactionStatus?.ToLower() == "correct")
+            {
+                _logger.LogInformation("Duplicate notification received for already completed payment {PaymentId}, returning existing payment", payment.Id);
+                return MapToDto(payment);
+            }
 
             // Update payment with marketplace notification data
             payment.TPayTransactionId = notification.data.transactionId;

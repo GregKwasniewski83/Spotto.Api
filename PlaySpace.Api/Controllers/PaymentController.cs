@@ -5,6 +5,7 @@ using PlaySpace.Domain.DTOs;
 using PlaySpace.Domain.Models;
 using PlaySpace.Domain.Exceptions;
 using PlaySpace.Services.Interfaces;
+using PlaySpace.Services.Services;
 
 namespace PlaySpace.Api.Controllers
 {
@@ -79,15 +80,14 @@ namespace PlaySpace.Api.Controllers
             {
                 _logger.LogInformation("Received TPay notification for transaction {TransactionId}", notification?.tr_id ?? "NULL");
 
-                // TODO: Re-enable MD5 validation for production
-                // var isValid = await _tpayService.ValidateNotificationAsync(notification, _tpayConfig.Md5Key);
-                // if (!isValid)
-                // {
-                //     _logger.LogWarning("Invalid TPay notification received");
-                //     return BadRequest("Invalid notification");
-                // }
-                
-                _logger.LogInformation("MD5 validation temporarily disabled for testing");
+                // Validate MD5 signature (MANDATORY for production)
+                var isValid = await _tpayService.ValidateNotificationAsync(notification, _tpayConfig.Md5Key);
+                if (!isValid)
+                {
+                    _logger.LogWarning("Invalid MD5 signature in TPay notification for transaction {TrId}", notification.tr_id);
+                    return BadRequest("Invalid notification signature");
+                }
+                _logger.LogInformation("MD5 validation passed for transaction {TrId}", notification.tr_id);
 
                 var payment = await _paymentService.HandleTPayNotificationAsync(notification);
 
@@ -142,9 +142,15 @@ namespace PlaySpace.Api.Controllers
 
                 _logger.LogDebug("JWS Signature received: {JwsSignature}", jwsSignature);
 
-                // TODO: Implement JWS signature verification
-                // For now, we'll log but not enforce verification during testing
-                _logger.LogWarning("JWS signature verification temporarily disabled for testing");
+                // Verify JWS signature (MANDATORY for production)
+                var jwsService = _serviceProvider.GetRequiredService<ITPayJwsVerificationService>();
+                var isValidSignature = await jwsService.VerifyJwsSignatureAsync(rawBody, jwsSignature);
+                if (!isValidSignature)
+                {
+                    _logger.LogWarning("Invalid JWS signature for marketplace notification");
+                    return Unauthorized(new TPayMarketplaceNotificationResponse { result = false });
+                }
+                _logger.LogInformation("JWS signature verified successfully");
 
                 // Parse notification from raw body
                 TPayMarketplaceNotification notification;

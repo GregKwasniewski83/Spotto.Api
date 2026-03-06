@@ -150,6 +150,7 @@ builder.Services.AddMemoryCache();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<ITPayService, TPayService>();
+builder.Services.AddHttpClient<ITPayJwsVerificationService, TPayJwsVerificationService>();
 builder.Services.AddScoped<IPaymentCacheService, PaymentCacheService>();
 builder.Services.AddScoped<IFacilityService, FacilityService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
