@@ -67,23 +67,36 @@ namespace PlaySpace.Services.Services
                 // Decode header to check algorithm
                 var headerJson = Encoding.UTF8.GetString(Base64UrlDecode(header));
                 var headerObj = JsonSerializer.Deserialize<JsonElement>(headerJson);
-                
+
                 if (!headerObj.TryGetProperty("alg", out var algProperty) || algProperty.GetString() != "RS256")
                 {
                     _logger.LogWarning("Unsupported JWS algorithm: {Algorithm}", algProperty.GetString());
                     return false;
                 }
 
-                // Verify that payload matches the raw body
-                var decodedPayload = Encoding.UTF8.GetString(Base64UrlDecode(payload));
-                if (decodedPayload != rawBody)
+                // TPay uses detached JWS: the payload is sent as HTTP body, not embedded in the JWS
+                // If payload part is empty, we need to base64url-encode the raw body ourselves
+                string payloadToVerify;
+                if (string.IsNullOrEmpty(payload))
                 {
-                    _logger.LogWarning("JWS payload does not match raw body");
-                    return false;
+                    // Detached payload - encode the raw body
+                    payloadToVerify = Base64UrlEncode(Encoding.UTF8.GetBytes(rawBody));
+                    _logger.LogDebug("Using detached JWS payload from raw body");
+                }
+                else
+                {
+                    // Embedded payload - verify it matches
+                    var decodedPayload = Encoding.UTF8.GetString(Base64UrlDecode(payload));
+                    if (decodedPayload != rawBody)
+                    {
+                        _logger.LogWarning("JWS payload does not match raw body");
+                        return false;
+                    }
+                    payloadToVerify = payload;
                 }
 
                 // Create signing input (header.payload)
-                var signingInput = $"{header}.{payload}";
+                var signingInput = $"{header}.{payloadToVerify}";
                 var signingInputBytes = Encoding.UTF8.GetBytes(signingInput);
 
                 // Decode signature
@@ -158,11 +171,20 @@ namespace PlaySpace.Services.Services
         {
             // Pad the input to make it valid base64
             var padded = input.Length % 4 == 0 ? input : input + new string('=', 4 - input.Length % 4);
-            
+
             // Replace URL-safe characters
             var base64 = padded.Replace('-', '+').Replace('_', '/');
-            
+
             return Convert.FromBase64String(base64);
+        }
+
+        private static string Base64UrlEncode(byte[] input)
+        {
+            // Convert to base64
+            var base64 = Convert.ToBase64String(input);
+
+            // Make it URL-safe: replace +/= with -_
+            return base64.Replace('+', '-').Replace('/', '_').TrimEnd('=');
         }
     }
 }
