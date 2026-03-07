@@ -340,6 +340,8 @@ public class KSeFApiService : IKSeFApiService
             // Check if accessToken is a string or object
             string? accessToken = null;
             string? validUntil = null;
+            string? refreshToken = null;
+            string? refreshTokenValidUntil = null;
 
             if (redeemData.TryGetProperty("accessToken", out var accessTokenElement))
             {
@@ -352,7 +354,23 @@ public class KSeFApiService : IKSeFApiService
                 {
                     // accessToken is an object with token and validUntil properties
                     accessToken = accessTokenElement.GetProperty("token").GetString();
-                    validUntil = accessTokenElement.GetProperty("validUntil").GetString();
+                    if (accessTokenElement.TryGetProperty("validUntil", out var validUntilElement))
+                        validUntil = validUntilElement.GetString();
+                }
+            }
+
+            // Extract refresh token (KSeF 2.0 - valid up to 7 days)
+            if (redeemData.TryGetProperty("refreshToken", out var refreshTokenElement))
+            {
+                if (refreshTokenElement.ValueKind == JsonValueKind.String)
+                {
+                    refreshToken = refreshTokenElement.GetString();
+                }
+                else if (refreshTokenElement.ValueKind == JsonValueKind.Object)
+                {
+                    refreshToken = refreshTokenElement.GetProperty("token").GetString();
+                    if (refreshTokenElement.TryGetProperty("validUntil", out var refreshValidUntilElement))
+                        refreshTokenValidUntil = refreshValidUntilElement.GetString();
                 }
             }
 
@@ -365,8 +383,8 @@ public class KSeFApiService : IKSeFApiService
                 };
             }
 
-            _logger.LogInformation("KSeF 2.0 authentication successful for NIP: {NIP}, valid until: {ValidUntil}",
-                nip, validUntil ?? "unknown");
+            _logger.LogInformation("KSeF 2.0 authentication successful for NIP: {NIP}, valid until: {ValidUntil}, refresh token: {HasRefresh}",
+                nip, validUntil ?? "unknown", !string.IsNullOrEmpty(refreshToken) ? "YES" : "NO");
 
             // Step 7: Open online session with encryption (KSeF 2.0 requirement)
             _logger.LogDebug("Step 7: Opening online session with encryption");
@@ -455,8 +473,8 @@ public class KSeFApiService : IKSeFApiService
 
             var sessionData = JsonSerializer.Deserialize<JsonElement>(openSessionResponseJson);
             var sessionReferenceNumber = sessionData.GetProperty("referenceNumber").GetString();
-            var sessionValidUntil = sessionData.TryGetProperty("validUntil", out var validUntilElement)
-                ? validUntilElement.GetString()
+            var sessionValidUntil = sessionData.TryGetProperty("validUntil", out var sessionValidUntilElement)
+                ? sessionValidUntilElement.GetString()
                 : validUntil;
 
             _logger.LogInformation("KSeF 2.0 online session opened successfully. SessionRef: {SessionRef}, ValidUntil: {ValidUntil}",
@@ -466,12 +484,16 @@ public class KSeFApiService : IKSeFApiService
             {
                 Success = true,
                 SessionToken = accessToken, // Access token (JWT) for API authorization
+                RefreshToken = refreshToken, // Refresh token for extending session (valid up to 7 days)
                 SessionReferenceNumber = sessionReferenceNumber, // Session reference number for invoice endpoints
                 SymmetricKey = symmetricKey, // Store for invoice encryption
                 InitializationVector = initializationVector, // Store for invoice encryption
                 ExpiresAt = string.IsNullOrEmpty(sessionValidUntil)
                     ? DateTime.UtcNow.AddMinutes(_ksefOptions.SessionExpirationMinutes)
-                    : DateTime.Parse(sessionValidUntil)
+                    : DateTime.Parse(sessionValidUntil),
+                RefreshTokenExpiresAt = string.IsNullOrEmpty(refreshTokenValidUntil)
+                    ? DateTime.UtcNow.AddDays(7) // Default 7 days for refresh token
+                    : DateTime.Parse(refreshTokenValidUntil)
             };
         }
         catch (HttpRequestException ex)
@@ -723,6 +745,94 @@ public class KSeFApiService : IKSeFApiService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error closing KSeF session");
+        }
+    }
+
+    public async Task<KSeFTokenRefreshResult> RefreshTokenAsync(string refreshToken, string environment)
+    {
+        try
+        {
+            var apiUrl = environment == "Production"
+                ? _ksefOptions.ProductionApiUrl
+                : _ksefOptions.TestApiUrl;
+
+            _logger.LogInformation("Refreshing KSeF access token, Environment: {Environment}", environment);
+
+            var httpClient = _httpClientFactory.CreateClient();
+            httpClient.BaseAddress = new Uri(apiUrl);
+            httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", refreshToken);
+
+            var response = await httpClient.PostAsync("auth/token/refresh", null);
+            var responseJson = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Failed to refresh KSeF token. Status: {Status}, Error: {Error}",
+                    response.StatusCode, responseJson);
+                return new KSeFTokenRefreshResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Token refresh failed: {response.StatusCode} - {responseJson}"
+                };
+            }
+
+            var responseData = JsonSerializer.Deserialize<JsonElement>(responseJson);
+
+            string? accessToken = null;
+            string? validUntil = null;
+
+            if (responseData.TryGetProperty("accessToken", out var accessTokenElement))
+            {
+                if (accessTokenElement.ValueKind == JsonValueKind.String)
+                {
+                    accessToken = accessTokenElement.GetString();
+                }
+                else if (accessTokenElement.ValueKind == JsonValueKind.Object)
+                {
+                    accessToken = accessTokenElement.GetProperty("token").GetString();
+                    if (accessTokenElement.TryGetProperty("validUntil", out var validUntilElement))
+                        validUntil = validUntilElement.GetString();
+                }
+            }
+
+            if (string.IsNullOrEmpty(accessToken))
+            {
+                return new KSeFTokenRefreshResult
+                {
+                    Success = false,
+                    ErrorMessage = "No access token in refresh response"
+                };
+            }
+
+            _logger.LogInformation("KSeF token refreshed successfully, valid until: {ValidUntil}", validUntil ?? "unknown");
+
+            return new KSeFTokenRefreshResult
+            {
+                Success = true,
+                AccessToken = accessToken,
+                ExpiresAt = string.IsNullOrEmpty(validUntil)
+                    ? DateTime.UtcNow.AddMinutes(_ksefOptions.SessionExpirationMinutes)
+                    : DateTime.Parse(validUntil)
+            };
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "HTTP error refreshing KSeF token");
+            return new KSeFTokenRefreshResult
+            {
+                Success = false,
+                ErrorMessage = $"Network error: {ex.Message}"
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error refreshing KSeF token");
+            return new KSeFTokenRefreshResult
+            {
+                Success = false,
+                ErrorMessage = $"Token refresh error: {ex.Message}"
+            };
         }
     }
 

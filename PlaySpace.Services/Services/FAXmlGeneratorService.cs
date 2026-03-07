@@ -30,7 +30,8 @@ public class FAXmlGeneratorService : IFAXmlGeneratorService
     private const int FA2_VARIANT = 2;
 
     // FA(3) schema - mandatory from February 1, 2026
-    private const string FA3_NAMESPACE = "http://crd.gov.pl/wzor/2023/06/29/12648/"; // Same namespace, different schema version
+    // Official namespace from: https://crd.gov.pl/wzor/2025/06/25/13775/
+    private const string FA3_NAMESPACE = "http://crd.gov.pl/wzor/2025/06/25/13775/";
     private const string FA3_SYSTEM_CODE = "FA (3)";
     private const string FA3_SCHEMA_VERSION = "1-0E";
     private const int FA3_VARIANT = 1;
@@ -271,7 +272,7 @@ public class FAXmlGeneratorService : IFAXmlGeneratorService
         int lineNumber = 1;
         foreach (var item in items)
         {
-            faElement.Add(BuildFaWiersz(ns, item, lineNumber++));
+            faElement.Add(BuildFaWiersz(ns, item, lineNumber++, useFA3));
         }
 
         // If no items, add a default line item from invoice totals
@@ -301,14 +302,17 @@ public class FAXmlGeneratorService : IFAXmlGeneratorService
     /// <summary>
     /// Builds FaWiersz (Invoice line item) element
     /// </summary>
-    private XElement BuildFaWiersz(XNamespace ns, KSeFInvoiceItem item, int lineNumber)
+    private XElement BuildFaWiersz(XNamespace ns, KSeFInvoiceItem item, int lineNumber, bool useFA3)
     {
         // Map Polish unit abbreviations to standard codes
         var unit = MapUnitToCode(item.Unit);
 
+        // FA(3) allows 512 characters for item name, FA(2) allows 256
+        var maxNameLength = useFA3 ? 512 : 256;
+
         return new XElement(ns + "FaWiersz",
             new XElement(ns + "NrWierszaFa", lineNumber.ToString()),
-            new XElement(ns + "P_7", TruncateString(item.Name, 256)), // Max 256 chars
+            new XElement(ns + "P_7", TruncateString(item.Name, maxNameLength)),
             new XElement(ns + "P_8A", unit),  // P_8A = miara (unit)
             new XElement(ns + "P_8B", FormatDecimal(item.Quantity)),  // P_8B = ilość (quantity)
             new XElement(ns + "P_9A", FormatDecimal(item.UnitPrice)),

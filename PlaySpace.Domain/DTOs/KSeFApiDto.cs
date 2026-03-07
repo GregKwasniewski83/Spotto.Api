@@ -7,13 +7,26 @@ public class KSeFSessionResult
 {
     public bool Success { get; set; }
     public string? SessionToken { get; set; } // Access token (JWT) for API calls
+    public string? RefreshToken { get; set; } // Refresh token for extending session (valid up to 7 days)
     public string? SessionReferenceNumber { get; set; } // Session reference number for invoice endpoints
     public string? ErrorMessage { get; set; }
     public DateTime ExpiresAt { get; set; }
+    public DateTime? RefreshTokenExpiresAt { get; set; } // When refresh token expires
 
     // Encryption data for KSeF 2.0 (needed for encrypting invoices)
     public byte[]? SymmetricKey { get; set; } // AES-256 key (32 bytes)
     public byte[]? InitializationVector { get; set; } // AES IV (16 bytes)
+}
+
+/// <summary>
+/// Result of token refresh operation
+/// </summary>
+public class KSeFTokenRefreshResult
+{
+    public bool Success { get; set; }
+    public string? AccessToken { get; set; }
+    public DateTime ExpiresAt { get; set; }
+    public string? ErrorMessage { get; set; }
 }
 
 /// <summary>

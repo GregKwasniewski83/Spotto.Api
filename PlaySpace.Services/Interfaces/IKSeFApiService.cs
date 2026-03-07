@@ -46,6 +46,14 @@ public interface IKSeFApiService
     Task CloseSessionAsync(string sessionToken, string environment);
 
     /// <summary>
+    /// Refresh an access token using a refresh token
+    /// </summary>
+    /// <param name="refreshToken">The refresh token from session initialization</param>
+    /// <param name="environment">"Test" or "Production"</param>
+    /// <returns>New access token with extended validity</returns>
+    Task<KSeFTokenRefreshResult> RefreshTokenAsync(string refreshToken, string environment);
+
+    /// <summary>
     /// Test connection to KSeF API with business credentials
     /// </summary>
     /// <param name="nip">Business NIP</param>
