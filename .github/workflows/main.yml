@@ -2,7 +2,7 @@ name: Build & Deploy to OVH
 
 on:
   push:
-    branches: [master]
+    branches: [main]
 
 jobs:
   build-and-deploy:
@@ -73,17 +73,24 @@ jobs:
             docker run -d \
             --name play-space-api \
             --network playspace-net \
-            -p 83:7125 \
+            -p 90:7125 \
             --add-host=host.docker.internal:host-gateway \
+            -e "ASPNETCORE_ENVIRONMENT=Production" \
             -e "ConnectionStrings__DefaultConnection=${{ secrets.DATABASE_CONNECTION_STRING }}" \
-            -e "TPayConfiguration__BaseUrl=https://openapi.sandbox.tpay.com" \
+            -e "TPayConfiguration__BaseUrl=https://api.tpay.com" \
             -e "TPayConfiguration__MerchantId=${{ secrets.TPAY_MERCHANT_ID }}" \
             -e "TPayConfiguration__ApiKey=${{ secrets.TPAY_API_KEY }}" \
             -e "TPayConfiguration__ApiPassword=${{ secrets.TPAY_API_PASSWORD }}" \
             -e "TPayConfiguration__Md5Key=${{ secrets.TPAY_MD5_KEY }}" \
-            -e "TPayConfiguration__NotificationUrl=https://api.playspace.agentreal.pl/api/payment/tpay-marketplace-notification" \
-            -e "TPayConfiguration__ReturnUrl=https://api.playspace.agentreal.pl/payment/success" \
+            -e "TPayConfiguration__NotificationUrl=https://api.spotto.pl/api/payment/tpay-marketplace-notification" \
+            -e "TPayConfiguration__ReturnUrl=https://api.spotto.pl/payment/success" \
             -e "TPayConfiguration__IsSandbox=false" \
+            -e "Jwt__Key=${{ secrets.JWT_KEY }}" \
+            -e "EmailConfiguration__Username=${{ secrets.EMAIL_USERNAME }}" \
+            -e "EmailConfiguration__Password=${{ secrets.EMAIL_PASSWORD }}" \
+            -e "FtpConfiguration__Host=${{ secrets.FTP_HOST }}" \
+            -e "FtpConfiguration__Username=${{ secrets.FTP_USERNAME }}" \
+            -e "FtpConfiguration__Password=${{ secrets.FTP_PASSWORD }}" \
             --restart unless-stopped \
             play-space-api:latest
             

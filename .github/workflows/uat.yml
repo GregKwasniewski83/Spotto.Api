@@ -86,6 +86,12 @@ jobs:
               -e "TPayConfiguration__NotificationUrl=https://uat.api.spotto.pl/api/payment/tpay-marketplace-notification" \
               -e "TPayConfiguration__ReturnUrl=https://uat.api.spotto.pl/payment/success" \
               -e "TPayConfiguration__IsSandbox=true" \
+              -e "Jwt__Key=${{ secrets.JWT_KEY_UAT }}" \
+              -e "EmailConfiguration__Username=${{ secrets.EMAIL_USERNAME_UAT }}" \
+              -e "EmailConfiguration__Password=${{ secrets.EMAIL_PASSWORD_UAT }}" \
+              -e "FtpConfiguration__Host=${{ secrets.FTP_HOST_UAT }}" \
+              -e "FtpConfiguration__Username=${{ secrets.FTP_USERNAME_UAT }}" \
+              -e "FtpConfiguration__Password=${{ secrets.FTP_PASSWORD_UAT }}" \
               --restart unless-stopped \
               play-space-api:uat
 

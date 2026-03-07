@@ -1,0 +1,105 @@
+name: Build & Deploy to OVH (DEV)
+
+on:
+  push:
+    branches: [dev]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: |
+          docker build -t play-space-api:dev .
+          mkdir -p docker-images
+          docker save play-space-api:dev -o docker-images/play-space-api-dev.tar
+          ls -lh docker-images/play-space-api-dev.tar
+
+      - name: Ensure deploy folder exists
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.OVH_HOST_DEV }}
+          username: ${{ secrets.OVH_USER_DEV }}
+          key: ${{ secrets.OVH_SSH_KEY_DEV }}
+          script: mkdir -p /tmp/deploy
+
+      - name: Upload Docker image to OVH (DEV)
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.OVH_HOST_DEV }}
+          username: ${{ secrets.OVH_USER_DEV }}
+          key: ${{ secrets.OVH_SSH_KEY_DEV }}
+          source: "docker-images/play-space-api-dev.tar"
+          target: "/tmp/deploy/"
+          rm: true
+
+      - name: Deploy to OVH (DEV)
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.OVH_HOST_DEV }}
+          username: ${{ secrets.OVH_USER_DEV }}
+          key: ${{ secrets.OVH_SSH_KEY_DEV }}
+          script: |
+            echo "--- Starting DEV deployment ---"
+
+            DEPLOY_DIR="/tmp/deploy/docker-images"
+            IMAGE_TAR="${DEPLOY_DIR}/play-space-api-dev.tar"
+
+            if [ ! -f "$IMAGE_TAR" ]; then
+              echo "ERROR: Docker image not found."
+              exit 1
+            fi
+
+            echo "Loading Docker image..."
+            docker load -i "$IMAGE_TAR" || (cat "$IMAGE_TAR" | docker load)
+
+            echo "Stopping old container..."
+            docker stop play-space-api-dev 2>/dev/null || true
+            docker rm play-space-api-dev 2>/dev/null || true
+
+            echo "Creating Docker network if needed..."
+            docker network inspect playspace-net >/dev/null 2>&1 || \
+            docker network create --subnet=172.20.0.0/16 playspace-net
+
+            echo "Starting new DEV container..."
+            docker run -d \
+              --name play-space-api-dev \
+              --network playspace-net \
+              -p 83:7125 \
+              --add-host=host.docker.internal:host-gateway \
+              -e "ASPNETCORE_ENVIRONMENT=Development" \
+              -e "ASPNETCORE_URLS=http://+:7125" \
+              -e "ConnectionStrings__DefaultConnection=${{ secrets.DATABASE_CONNECTION_STRING_DEV }}" \
+              -e "TPayConfiguration__BaseUrl=https://openapi.sandbox.tpay.com" \
+              -e "TPayConfiguration__MerchantId=${{ secrets.TPAY_MERCHANT_ID_DEV }}" \
+              -e "TPayConfiguration__ApiKey=${{ secrets.TPAY_API_KEY_DEV }}" \
+              -e "TPayConfiguration__ApiPassword=${{ secrets.TPAY_API_PASSWORD_DEV }}" \
+              -e "TPayConfiguration__Md5Key=${{ secrets.TPAY_MD5_KEY_DEV }}" \
+              -e "TPayConfiguration__NotificationUrl=https://dev.api.spotto.pl/api/payment/tpay-marketplace-notification" \
+              -e "TPayConfiguration__ReturnUrl=https://dev.api.spotto.pl/payment/success" \
+              -e "TPayConfiguration__IsSandbox=true" \
+              -e "Jwt__Key=${{ secrets.JWT_KEY_DEV }}" \
+              -e "EmailConfiguration__Username=${{ secrets.EMAIL_USERNAME_DEV }}" \
+              -e "EmailConfiguration__Password=${{ secrets.EMAIL_PASSWORD_DEV }}" \
+              -e "FtpConfiguration__Host=${{ secrets.FTP_HOST_DEV }}" \
+              -e "FtpConfiguration__Username=${{ secrets.FTP_USERNAME_DEV }}" \
+              -e "FtpConfiguration__Password=${{ secrets.FTP_PASSWORD_DEV }}" \
+              --restart unless-stopped \
+              play-space-api:dev
+
+            docker network connect logging play-space-api-dev 2>/dev/null || true
+
+            echo "Verifying deployment..."
+            docker ps --filter "name=play-space-api-dev" --format "table {{.ID}}\t{{.Names}}\t{{.Status}}"
+
+            echo "Cleaning up..."
+            rm -f "$IMAGE_TAR"
+
+            echo "--- DEV Deployment Complete ---"
