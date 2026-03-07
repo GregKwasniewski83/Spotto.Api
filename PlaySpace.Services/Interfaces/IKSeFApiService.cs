@@ -25,22 +25,25 @@ public interface IKSeFApiService
     /// <param name="invoiceXml">FA (Faktura) XML content</param>
     /// <param name="symmetricKey">AES-256 key (32 bytes) from session initialization</param>
     /// <param name="initializationVector">AES IV (16 bytes) from session initialization</param>
+    /// <param name="environment">"Test" or "Production"</param>
     /// <returns>Result containing KSeF reference number and status</returns>
-    Task<KSeFInvoiceSubmissionResult> SendInvoiceAsync(string sessionToken, string sessionReferenceNumber, string invoiceXml, byte[] symmetricKey, byte[] initializationVector);
+    Task<KSeFInvoiceSubmissionResult> SendInvoiceAsync(string sessionToken, string sessionReferenceNumber, string invoiceXml, byte[] symmetricKey, byte[] initializationVector, string environment);
 
     /// <summary>
     /// Check the status of a submitted invoice
     /// </summary>
     /// <param name="sessionToken">Active session token</param>
     /// <param name="ksefReferenceNumber">KSeF reference number from invoice submission</param>
+    /// <param name="environment">"Test" or "Production"</param>
     /// <returns>Current status of the invoice in KSeF</returns>
-    Task<KSeFInvoiceStatusResult> CheckInvoiceStatusAsync(string sessionToken, string ksefReferenceNumber);
+    Task<KSeFInvoiceStatusResult> CheckInvoiceStatusAsync(string sessionToken, string ksefReferenceNumber, string environment);
 
     /// <summary>
     /// Close an active KSeF session
     /// </summary>
     /// <param name="sessionToken">Active session token to close</param>
-    Task CloseSessionAsync(string sessionToken);
+    /// <param name="environment">"Test" or "Production"</param>
+    Task CloseSessionAsync(string sessionToken, string environment);
 
     /// <summary>
     /// Test connection to KSeF API with business credentials

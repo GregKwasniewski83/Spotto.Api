@@ -567,7 +567,8 @@ public class KSeFInvoiceService : IKSeFInvoiceService
             // Check status
             var statusResult = await _ksefApiService.CheckInvoiceStatusAsync(
                 sessionResult.SessionToken!,
-                invoice.KSeFReferenceNumber);
+                invoice.KSeFReferenceNumber,
+                businessProfile.KSeFEnvironment);
 
             if (statusResult.Success)
             {
@@ -588,7 +589,7 @@ public class KSeFInvoiceService : IKSeFInvoiceService
             }
 
             // Close session
-            await _ksefApiService.CloseSessionAsync(sessionResult.SessionToken!);
+            await _ksefApiService.CloseSessionAsync(sessionResult.SessionToken!, businessProfile.KSeFEnvironment);
         }
         catch (Exception ex)
         {
@@ -876,7 +877,8 @@ public class KSeFInvoiceService : IKSeFInvoiceService
                 sessionResult.SessionReferenceNumber,
                 faXml,
                 sessionResult.SymmetricKey,
-                sessionResult.InitializationVector);
+                sessionResult.InitializationVector,
+                ksefCredentialsProfile.KSeFEnvironment);
 
             if (submissionResult.Success)
             {
@@ -906,7 +908,7 @@ public class KSeFInvoiceService : IKSeFInvoiceService
 
             // Step 5: Close KSeF session
             _logger.LogDebug("[KSeF] Step 5: Closing KSeF session");
-            await _ksefApiService.CloseSessionAsync(sessionResult.SessionToken!);
+            await _ksefApiService.CloseSessionAsync(sessionResult.SessionToken!, ksefCredentialsProfile.KSeFEnvironment);
             _logger.LogDebug("[KSeF] KSeF session closed");
 
             _invoiceRepository.UpdateInvoice(invoice);

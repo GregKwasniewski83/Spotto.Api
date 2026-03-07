@@ -508,15 +508,20 @@ public class KSeFApiService : IKSeFApiService
         string sessionReferenceNumber,
         string invoiceXml,
         byte[] symmetricKey,
-        byte[] initializationVector)
+        byte[] initializationVector,
+        string environment)
     {
         try
         {
-            _logger.LogInformation("[KSeF] Sending encrypted invoice to KSeF 2.0. SessionRef: {SessionRef}, XML length: {Length}",
-                sessionReferenceNumber, invoiceXml.Length);
+            var apiUrl = environment == "Production"
+                ? _ksefOptions.ProductionApiUrl
+                : _ksefOptions.TestApiUrl;
+
+            _logger.LogInformation("[KSeF] Sending encrypted invoice to KSeF 2.0. SessionRef: {SessionRef}, XML length: {Length}, Environment: {Environment}",
+                sessionReferenceNumber, invoiceXml.Length, environment);
 
             var httpClient = _httpClientFactory.CreateClient();
-            httpClient.BaseAddress = new Uri(_ksefOptions.TestApiUrl);
+            httpClient.BaseAddress = new Uri(apiUrl);
             httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
@@ -626,14 +631,18 @@ public class KSeFApiService : IKSeFApiService
         }
     }
 
-    public async Task<KSeFInvoiceStatusResult> CheckInvoiceStatusAsync(string accessToken, string ksefReferenceNumber)
+    public async Task<KSeFInvoiceStatusResult> CheckInvoiceStatusAsync(string accessToken, string ksefReferenceNumber, string environment)
     {
         try
         {
-            _logger.LogInformation("Checking invoice status for reference: {ReferenceNumber}", ksefReferenceNumber);
+            var apiUrl = environment == "Production"
+                ? _ksefOptions.ProductionApiUrl
+                : _ksefOptions.TestApiUrl;
+
+            _logger.LogInformation("Checking invoice status for reference: {ReferenceNumber}, Environment: {Environment}", ksefReferenceNumber, environment);
 
             var httpClient = _httpClientFactory.CreateClient();
-            httpClient.BaseAddress = new Uri(_ksefOptions.TestApiUrl);
+            httpClient.BaseAddress = new Uri(apiUrl);
             httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
@@ -686,14 +695,18 @@ public class KSeFApiService : IKSeFApiService
         }
     }
 
-    public async Task CloseSessionAsync(string accessToken)
+    public async Task CloseSessionAsync(string accessToken, string environment)
     {
         try
         {
-            _logger.LogInformation("Closing KSeF session");
+            var apiUrl = environment == "Production"
+                ? _ksefOptions.ProductionApiUrl
+                : _ksefOptions.TestApiUrl;
+
+            _logger.LogInformation("Closing KSeF session, Environment: {Environment}", environment);
 
             var httpClient = _httpClientFactory.CreateClient();
-            httpClient.BaseAddress = new Uri(_ksefOptions.TestApiUrl);
+            httpClient.BaseAddress = new Uri(apiUrl);
             httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
 
             var response = await httpClient.DeleteAsync("context/sessions/current");
@@ -722,7 +735,7 @@ public class KSeFApiService : IKSeFApiService
             var sessionResult = await InitializeSessionAsync(nip, token, environment);
             if (sessionResult.Success && !string.IsNullOrEmpty(sessionResult.SessionToken))
             {
-                await CloseSessionAsync(sessionResult.SessionToken);
+                await CloseSessionAsync(sessionResult.SessionToken, environment);
                 _logger.LogInformation("KSeF connection test successful for NIP: {NIP}", nip);
                 return true;
             }
