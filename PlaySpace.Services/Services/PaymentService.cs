@@ -325,17 +325,23 @@ namespace PlaySpace.Services.Services
             if (string.IsNullOrEmpty(trainerProfile.TPayMerchantId))
                 throw new ValidationException("Trainer does not have TPay merchant registration. Cannot process marketplace payment.");
 
-            _logger.LogDebug("Training payment processing - TrainingId: {TrainingId}, TrainerProfileId: {TrainerProfileId}, MerchantId: {MerchantId}", 
+            _logger.LogDebug("Training payment processing - TrainingId: {TrainingId}, TrainerProfileId: {TrainerProfileId}, MerchantId: {MerchantId}",
                 trainingPaymentDto.TrainingId, training.TrainerProfileId, trainerProfile.TPayMerchantId);
+
+            // Calculate gross price to charge customer (use GrossPrice if set, otherwise calculate from net + VAT)
+            var grossPriceToCharge = training.GrossPrice ?? training.Price * (1 + training.VatRate / 100m);
+
+            _logger.LogInformation("Training payment - Net: {NetPrice}, VAT: {VatRate}%, Gross: {GrossPrice}",
+                training.Price, training.VatRate, grossPriceToCharge);
 
             // Create payment record
             var payment = new Payment
             {
                 Id = Guid.NewGuid(),
                 UserId = trainingPaymentDto.UserId,
-                Amount = training.Price,
+                Amount = grossPriceToCharge,
                 Description = $"Training: {training.Title}",
-                Breakdown = $"Training Price: {training.Price:C}",
+                Breakdown = $"Training Price (net): {training.Price:C}, VAT {training.VatRate}%: {(grossPriceToCharge - training.Price):C}, Total (gross): {grossPriceToCharge:C}",
                 Status = "PENDING",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
@@ -388,7 +394,7 @@ namespace PlaySpace.Services.Services
                 {
                     new ChildTransaction
                     {
-                        amount = (int)(training.Price * 100),
+                        amount = (int)(grossPriceToCharge * 100),
                         description = $"Training: {training.Title}",
                         hiddenDescription = payment.Id.ToString(),
                         merchant = new MarketplaceMerchant

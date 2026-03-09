@@ -563,20 +563,20 @@ public class ReservationService : IReservationService
                 }
                 else
                 {
-                    // Fall back to trainer's own hourly rate
+                    // Fall back to trainer's own hourly rate (use gross price)
                     var trainer = _trainerProfileRepository.GetTrainerProfileById(reservationDto.TrainerProfileId.Value);
                     if (trainer == null)
                         throw new NotFoundException("Trainer profile", reservationDto.TrainerProfileId.Value.ToString());
-                    basePricePerSlot += trainer.HourlyRate;
+                    basePricePerSlot += trainer.GrossHourlyRate;
                 }
             }
             else
             {
-                // No business profile, fall back to trainer's own hourly rate
+                // No business profile, fall back to trainer's own hourly rate (use gross price)
                 var trainer = _trainerProfileRepository.GetTrainerProfileById(reservationDto.TrainerProfileId.Value);
                 if (trainer == null)
                     throw new NotFoundException("Trainer profile", reservationDto.TrainerProfileId.Value.ToString());
-                basePricePerSlot += trainer.HourlyRate;
+                basePricePerSlot += trainer.GrossHourlyRate;
             }
         }
 
@@ -847,23 +847,23 @@ public class ReservationService : IReservationService
                     }
                     else
                     {
-                        // Fall back to trainer's own hourly rate
+                        // Fall back to trainer's own hourly rate (use gross price)
                         var trainer = _trainerProfileRepository.GetTrainerProfileById(facilityReservation.TrainerProfileId.Value);
                         if (trainer != null)
                         {
-                            basePricePerSlot += trainer.HourlyRate;
-                            _logger.LogInformation("Using trainer profile pricing for trainer {TrainerId}: {Rate}/hour",
-                                facilityReservation.TrainerProfileId.Value, trainer.HourlyRate);
+                            basePricePerSlot += trainer.GrossHourlyRate;
+                            _logger.LogInformation("Using trainer profile pricing for trainer {TrainerId}: {Rate}/hour (gross)",
+                                facilityReservation.TrainerProfileId.Value, trainer.GrossHourlyRate);
                         }
                     }
                 }
                 else
                 {
-                    // No business profile, fall back to trainer's own hourly rate
+                    // No business profile, fall back to trainer's own hourly rate (use gross price)
                     var trainer = _trainerProfileRepository.GetTrainerProfileById(facilityReservation.TrainerProfileId.Value);
                     if (trainer != null)
                     {
-                        basePricePerSlot += trainer.HourlyRate;
+                        basePricePerSlot += trainer.GrossHourlyRate;
                     }
                 }
             }
@@ -1186,7 +1186,7 @@ public class ReservationService : IReservationService
                             var trainer = _trainerProfileRepository.GetTrainerProfileById(facilityReservation.TrainerProfileId.Value);
                             if (trainer != null)
                             {
-                                basePricePerSlot += trainer.HourlyRate;
+                                basePricePerSlot += trainer.GrossHourlyRate;
                             }
                         }
                     }
